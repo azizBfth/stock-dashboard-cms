@@ -30,7 +30,7 @@ router.get('/product/:productId', async (req, res) => {
 // 🔹 Ajouter un mouvement (entrée/sortie)
 router.post('/', async (req, res) => {
   try {
-    const { product, type, quantity, location, operator } = req.body;
+    const { product, type, quantity, location, operator, datetime } = req.body;
 
     // Vérifier si le produit existe
     const existingProduct = await Product.findById(product);
@@ -42,7 +42,14 @@ router.post('/', async (req, res) => {
     }
 
     // Créer le mouvement
-    const newMovement = new StockMovement({ product, type, quantity, location, operator });
+    const newMovement = new StockMovement({
+      product,
+      type,
+      quantity,
+      location,
+      operator,
+      datetime: datetime || Date.now(), // Use the provided datetime or default to current time
+    });
     await newMovement.save();
 
     // Mettre à jour le stock du produit
@@ -59,50 +66,52 @@ router.post('/', async (req, res) => {
   }
 });
 
+
 // 🔹 Modifier un mouvement existant
 router.put('/:id', async (req, res) => {
-    try {
-      const { type, quantity, location, operator } = req.body;
-      const movement = await StockMovement.findById(req.params.id);
-  
-      if (!movement) return res.status(404).json({ message: 'Mouvement non trouvé' });
-  
-      const product = await Product.findById(movement.product);
-      if (!product) return res.status(404).json({ message: 'Produit non trouvé' });
-  
-      // 🔹 1. Revert the previous movement
-      if (movement.type === 'entree') {
-        product.quantity -= movement.quantity; // Undo the previous "entree" (incoming)
-      } else if (movement.type === 'sortie') {
-        product.quantity += movement.quantity; // Undo the previous "sortie" (outgoing)
-      }
-  
-      // 🔹 2. Apply the new movement
-      if (type === 'entree') {
-        product.quantity += quantity; // Apply the new "entree" (incoming)
-      } else if (type === 'sortie') {
-        if (product.quantity < quantity) {
-          return res.status(400).json({ message: 'Quantité insuffisante en stock' });
-        }
-        product.quantity -= quantity; // Apply the new "sortie" (outgoing)
-      }
-      movement.type = type;
-      movement.quantity = quantity;
-      movement.location = location;
-      movement.operator = operator;
-      await movement.save();
-      // 🔹 3. Save the updated product with the correct quantity
-      const updatedProduct = await product.save(); // Save the updated product
-  
-      // 🔹 4. Update the movement details
+  try {
+    const { type, quantity, location, operator, datetime } = req.body;
+    const movement = await StockMovement.findById(req.params.id);
 
-  
-      // 🔹 5. Return the updated movement and product info
-      res.json({ movement: movement, product: updatedProduct }); // Return both the movement and the updated product
-    } catch (error) {
-      res.status(500).json({ message: error.message });
+    if (!movement) return res.status(404).json({ message: 'Mouvement non trouvé' });
+
+    const product = await Product.findById(movement.product);
+    if (!product) return res.status(404).json({ message: 'Produit non trouvé' });
+
+    // 🔹 1. Revert the previous movement
+    if (movement.type === 'entree') {
+      product.quantity -= movement.quantity; // Undo the previous "entree" (incoming)
+    } else if (movement.type === 'sortie') {
+      product.quantity += movement.quantity; // Undo the previous "sortie" (outgoing)
     }
-  });
+
+    // 🔹 2. Apply the new movement
+    if (type === 'entree') {
+      product.quantity += quantity; // Apply the new "entree" (incoming)
+    } else if (type === 'sortie') {
+      if (product.quantity < quantity) {
+        return res.status(400).json({ message: 'Quantité insuffisante en stock' });
+      }
+      product.quantity -= quantity; // Apply the new "sortie" (outgoing)
+    }
+
+    // Update the movement with new values
+    movement.type = type;
+    movement.quantity = quantity;
+    movement.location = location;
+    movement.operator = operator;
+    movement.datetime = datetime || movement.datetime; // Use the provided datetime or keep the old one
+    await movement.save();
+
+    // 🔹 3. Save the updated product with the correct quantity
+    const updatedProduct = await product.save();
+
+    res.json({ movement: movement, product: updatedProduct }); // Return both the movement and the updated product
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
   
   
   
