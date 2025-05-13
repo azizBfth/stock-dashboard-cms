@@ -4,6 +4,9 @@ const path = require("path");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 
+const https = require("https");
+const fs = require("fs");
+
 const productRoutes = require("./routes/ProductRoutes");
 const stockMvtRoutes = require("./routes/StockMovementRoutes");
 
@@ -27,7 +30,7 @@ app.get("*", (req, res) => {
 
 // Connexion à MongoDB
 mongoose.set("strictQuery", false);
-const mongoURI ="mongodb://mongo:27017/mvtdb";
+const mongoURI = "mongodb://mongo:27017/mvtdb";
 
 mongoose
   .connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
@@ -35,10 +38,19 @@ mongoose
     console.log("✅ Connecté à MongoDB");
 
     // Démarrer le serveur HTTP
-    const PORT =  80;
+    const PORT = 80;
     const server = app.listen(PORT, () => {
       console.log(`🚀 Serveur démarré sur le port ${PORT}`);
     });
+    const httpsOptions = {
+      key: fs.readFileSync(path.join(__dirname, "certs", "key.pem")),
+      cert: fs.readFileSync(path.join(__dirname, "certs", "cert.pem")),
+    };
+    // Démarrer le serveur HTTPS
+    https.createServer(httpsOptions, app).listen(443, () => {
+      console.log("🚀 Serveur HTTPS démarré sur le port 443");
+    }
+    );
 
   })
   .catch((error) => {
