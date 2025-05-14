@@ -9,7 +9,7 @@ const fs = require("fs");
 
 const productRoutes = require("./routes/ProductRoutes");
 const stockMvtRoutes = require("./routes/StockMovementRoutes");
-
+const http = require("http");
 const app = express();
 
 app.use(cookieParser());
@@ -39,19 +39,22 @@ mongoose
 
     // Démarrer le serveur HTTP
     const PORT = 80;
-    const server = app.listen(PORT, () => {
-      console.log(`🚀 Serveur démarré sur le port ${PORT}`);
-    });
-    const httpsOptions = {
-      key: fs.readFileSync(path.join(__dirname, "certs", "key.pem")),
-      cert: fs.readFileSync(path.join(__dirname, "certs", "cert.pem")),
-    };
-    // Démarrer le serveur HTTPS
-    https.createServer(httpsOptions, app).listen(443, () => {
-      console.log("🚀 Serveur HTTPS démarré sur le port 443");
-    }
-    );
+http.createServer((req, res) => {
+  const host = req.headers.host.replace(/:\d+$/, ''); // remove port if any
+  res.writeHead(301, { "Location": `https://${host}${req.url}` });
+  res.end();
+}).listen(80, () => {
+  console.log("🌐 HTTP server listening on port 80 (redirecting to HTTPS)");
+});
+   const httpsOptions = {
+  key: fs.readFileSync(path.join(__dirname, "certs", "key.pem")),
+  cert: fs.readFileSync(path.join(__dirname, "certs", "cert.pem")),
+};
 
+// 🚀 Start HTTPS server
+https.createServer(httpsOptions, app).listen(443, () => {
+  console.log("🚀 Serveur HTTPS démarré sur le port 443");
+});
   })
   .catch((error) => {
     console.error("❌ Erreur de connexion MongoDB:", error);
