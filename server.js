@@ -4,31 +4,41 @@ const path = require("path");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 
-const https = require("https");
-const fs = require("fs");
-
 const productRoutes = require("./routes/ProductRoutes");
 const stockMvtRoutes = require("./routes/StockMovementRoutes");
-const http = require("http");
+const cremeRoutes = require("./routes/CremeRoutes");
+const mslProductRoutes = require("./routes/MslProductRoutes");
+
 const app = express();
 
+// Middleware
 app.use(cookieParser());
-app.use(cors());
+
+// Autoriser toutes les origines
+app.use(
+  cors({
+    origin: "*", // <- permet toutes les origines
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Routes API
+// API routes
 app.use("/api/products", productRoutes);
 app.use("/api/mvt", stockMvtRoutes);
+app.use("/api/creme", cremeRoutes);
+app.use("/api/msl", mslProductRoutes);
 
-// Servir le frontend React
+// Serve React frontend
 app.use(express.static(path.join(__dirname, "build")));
-
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "build", "index.html"));
 });
 
-// Connexion à MongoDB
+// Connect to MongoDB
 mongoose.set("strictQuery", false);
 const mongoURI = "mongodb://mongo:27017/mvtdb";
 
@@ -37,24 +47,10 @@ mongoose
   .then(() => {
     console.log("✅ Connecté à MongoDB");
 
-    // Démarrer le serveur HTTP
     const PORT = 80;
-http.createServer((req, res) => {
-  const host = req.headers.host.replace(/:\d+$/, ''); // remove port if any
-  res.writeHead(301, { "Location": `https://${host}${req.url}` });
-  res.end();
-}).listen(80, () => {
-  console.log("🌐 HTTP server listening on port 80 (redirecting to HTTPS)");
-});
-   const httpsOptions = {
-  key: fs.readFileSync(path.join(__dirname, "certs", "key.pem")),
-  cert: fs.readFileSync(path.join(__dirname, "certs", "cert.pem")),
-};
-
-// 🚀 Start HTTPS server
-https.createServer(httpsOptions, app).listen(443, () => {
-  console.log("🚀 Serveur HTTPS démarré sur le port 443");
-});
+    app.listen(PORT, () => {
+      console.log(`🌐 Serveur HTTP démarré sur le port ${PORT}`);
+    });
   })
   .catch((error) => {
     console.error("❌ Erreur de connexion MongoDB:", error);
